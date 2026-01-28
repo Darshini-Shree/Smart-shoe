@@ -1,0 +1,84 @@
+
+#define trigPinL 25
+#define echoPinL 34      
+#define trigPinR 26
+#define echoPinR 35      
+#define irPin 23
+
+
+#define BT_RX 16   
+#define BT_TX 17   
+
+unsigned long lastAlertTime = 0;
+const unsigned long alertDelay = 800; 
+
+
+void setup() {
+  Serial.begin(9600);  
+  Serial2.begin(9600, SERIAL_8N1, BT_RX, BT_TX);
+
+  pinMode(trigPinL, OUTPUT);
+  pinMode(echoPinL, INPUT);
+  pinMode(trigPinR, OUTPUT);
+  pinMode(echoPinR, INPUT);
+  pinMode(irPin, INPUT);
+
+  Serial.println("🟢 Smart Shoe Ready");
+  Serial2.println("Smart Shoe Ready");
+}
+
+
+long getDistance(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000); 
+
+  if (duration == 0) return -1;  
+  return (duration * 0.034) / 2; 
+}
+
+void loop() {
+  long leftDist  = getDistance(trigPinL, echoPinL);
+  long rightDist = getDistance(trigPinR, echoPinR);
+  bool irObstacle = (digitalRead(irPin) == LOW);
+
+  
+  Serial.print("Left: ");
+  Serial.print(leftDist);
+  Serial.print(" cm | Right: ");
+  Serial.print(rightDist);
+  Serial.print(" cm | IR: ");
+  Serial.println(irObstacle ? "Blocked" : "Clear");
+
+  
+  if (millis() - lastAlertTime > alertDelay) {
+
+    if (irObstacle) {
+      Serial2.println("Obstacle ahead");
+      Serial.println("📡 Sent: Obstacle ahead");
+      lastAlertTime = millis();
+    }
+    else if (leftDist > 0 && leftDist < 30 && rightDist > 0 && rightDist < 30) {
+      Serial2.println("Obstacle on both sides");
+      Serial.println("📡 Sent: Obstacle on both sides");
+      lastAlertTime = millis();
+    }
+    else if (leftDist > 0 && leftDist < 30) {
+      Serial2.println("Obstacle on left");
+      Serial.println("📡 Sent: Obstacle on left");
+      lastAlertTime = millis();
+    }
+    else if (rightDist > 0 && rightDist < 30) {
+      Serial2.println("Obstacle on right");
+      Serial.println("📡 Sent: Obstacle on right");
+      lastAlertTime = millis();
+    }
+  }
+
+  delay(150); 
+}
